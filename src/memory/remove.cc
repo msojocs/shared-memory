@@ -3,7 +3,6 @@
 #include <boost/interprocess/sync/named_mutex.hpp>
 #include "../memory.hh"
 #include "spdlog/spdlog.h"
-#include <iostream>
 
 namespace SharedMemory {
 

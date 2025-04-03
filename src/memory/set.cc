@@ -1,10 +1,9 @@
 #include "napi.h"
 #include "../memory.hh"
 #include "spdlog/spdlog.h"
-#include <iostream>
 
 namespace SharedMemory {
-    Napi::Uint8Array set_memory(const Napi::CallbackInfo &info) {
+    Napi::Value set_memory(const Napi::CallbackInfo &info) {
         spdlog::info("Set memory call.");
         auto env = info.Env();
         
@@ -34,14 +33,11 @@ namespace SharedMemory {
                 spdlog::info("Buffer cleanup callback called.");
             };
             
+            spdlog::info("Create result.");
             Napi::ArrayBuffer buffer = Napi::ArrayBuffer::New(env, manager->get_address(), manager->get_size(), deleter);
             
-            spdlog::info("Create result.");
-            // 从ArrayBuffer创建一个Uint8Array
-            Napi::Uint8Array result = Napi::Uint8Array::New(env, manager->get_size(), buffer, 0);
-            
             spdlog::info("Return result.");
-            return result;
+            return buffer;
         } catch (const std::exception& e) {
             spdlog::error("Error: {}", e.what());
             throw Napi::Error::New(env, std::string("创建共享内存失败: ") + e.what());
