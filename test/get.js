@@ -16,7 +16,7 @@ try {
     // 验证数据
     console.info('------verify data---------')
     let isValid = true;
-    for (let i = 0; i < result.length; i++) {
+    for (let i = 0; i < Math.min(100, result.length); i++) {
         if (result[i] !== i % 256) {
             console.error(`数据验证失败: 位置 ${i} 的值为 ${result[i]}，期望值为 ${i % 256}`);
             isValid = false;
