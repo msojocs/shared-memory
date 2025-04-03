@@ -32,6 +32,7 @@ include("${VCPKG_ROOT}/scripts/buildsystems/vcpkg.cmake")
 message("LD_LIBRARY_PATH:" ${LD_LIBRARY_PATH})
 
 find_package(Boost COMPONENTS interprocess REQUIRED)
+find_package(spdlog CONFIG REQUIRED)
 if (Boost_FOUND)
     include_directories(${Boost_INCLUDE_DIRS})
     link_directories(${Boost_LIBRARY_DIRS})
@@ -97,7 +98,7 @@ include_directories(${CMAKE_JS_SRC})
 include_directories(${NODE_ADDON_API_DIR})
 include_directories(${Boost_INCLUDE_DIRS})
 
-set(MODULE_NAME module_example)
+set(MODULE_NAME sharedMemory)
 set(SRC_DIR_LIST
     src/main.cc
     src/memory/set.cc
@@ -121,6 +122,7 @@ if (WIN32)
 endif()
 target_link_libraries(${MODULE_NAME} PRIVATE Boost::interprocess)
 target_link_libraries(${MODULE_NAME} PRIVATE ${CMAKE_JS_LIB})
+target_link_libraries(${MODULE_NAME} PRIVATE spdlog::spdlog)
 
 set_target_properties(${MODULE_NAME} PROPERTIES PREFIX "" SUFFIX ".node")
 
