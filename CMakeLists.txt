@@ -104,6 +104,7 @@ set(SRC_DIR_LIST
     src/memory/set.cc
     src/memory/get.cc
     src/memory/remove.cc
+    src/memory/manager.cc
     src/memory.hh
 )
 add_library(${MODULE_NAME}
