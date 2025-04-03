@@ -98,7 +98,13 @@ include_directories(${NODE_ADDON_API_DIR})
 include_directories(${Boost_INCLUDE_DIRS})
 
 set(MODULE_NAME module_example)
-file(GLOB_RECURSE SRC_DIR_LIST "src/*.cc" "src/**/*.cc" "src/*.hh")
+set(SRC_DIR_LIST
+    src/main.cc
+    src/memory/set.cc
+    src/memory/get.cc
+    src/memory/remove.cc
+    src/memory.hh
+)
 add_library(${MODULE_NAME}
     SHARED
     ${SRC_DIR_LIST}
