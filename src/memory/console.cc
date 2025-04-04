@@ -1,6 +1,7 @@
 #include "../memory.hh"
 #include <cstdarg>
 #include <cstdio>
+#include <spdlog/spdlog.h>
 
 namespace SharedMemory {
     // 全局回调函数
@@ -23,25 +24,63 @@ namespace SharedMemory {
         return env.Undefined();
     }
 
+    // 清理控制台回调函数
+    void cleanup_console() {
+        if (!console_callback.IsEmpty()) {
+            console_callback.Reset();
+        }
+    }
+
     // 日志辅助函数 - 字符串版本
     void log(const std::string& message) {
         if (!console_callback.IsEmpty()) {
-            Napi::Env env = console_callback.Env();
-            console_callback.Call({Napi::String::New(env, message)});
+            try {
+                Napi::Env env = console_callback.Env();
+                Napi::HandleScope scope(env);
+                
+                // 使用 try-catch 捕获可能的异常
+                try {
+                    console_callback.Call({Napi::String::New(env, message)});
+                } catch (const Napi::Error& error) {
+                    spdlog::error("回调函数执行失败: {}", error.Message());
+                }
+            } catch (const std::exception& e) {
+                spdlog::error("回调函数执行异常: {}", e.what());
+            } catch (...) {
+                spdlog::error("回调函数执行未知异常");
+            }
         }
     }
 
     // 日志辅助函数 - 格式化版本
     void log(const char* format, ...) {
+        char buffer[1024];
+        va_list args;
+        va_start(args, format);
+        
         if (!console_callback.IsEmpty()) {
-            char buffer[1024];
-            va_list args;
-            va_start(args, format);
-            vsnprintf(buffer, sizeof(buffer), format, args);
-            va_end(args);
+            try {
+                vsnprintf(buffer, sizeof(buffer), format, args);
+                va_end(args);
 
-            Napi::Env env = console_callback.Env();
-            console_callback.Call({Napi::String::New(env, buffer)});
+                Napi::Env env = console_callback.Env();
+                Napi::HandleScope scope(env);
+                
+                // 使用 try-catch 捕获可能的异常
+                try {
+                    console_callback.Call({Napi::String::New(env, buffer)});
+                } catch (const Napi::Error& error) {
+                    spdlog::error("回调函数执行失败: {}", error.Message());
+                }
+            } catch (const std::exception& e) {
+                spdlog::error("回调函数执行异常: {}", e.what());
+            } catch (...) {
+                spdlog::error("回调函数执行未知异常");
+            }
+        }
+        else {
+            spdlog::info(format, args);
+            va_end(args);
         }
     }
 } 

@@ -30,6 +30,7 @@ include("${VCPKG_ROOT}/scripts/buildsystems/vcpkg.cmake")
 
 message("LD_LIBRARY_PATH:" ${LD_LIBRARY_PATH})
 
+find_package(spdlog REQUIRED)
 find_program(PNPM_EXECUTABLE pnpm)
 if(NOT PNPM_EXECUTABLE)
     message(FATAL_ERROR "pnpm not found!")
@@ -101,7 +102,7 @@ add_library(${MODULE_NAME}
     ${CMAKE_JS_SRC}
     )
 
-set(IS_RUNNING_NODE true)
+set(IS_RUNNING_NODE false)
 if (WIN32)
     if(IS_RUNNING_NODE)
         message("生成 node_api.lib")
@@ -121,6 +122,7 @@ else()
     target_link_libraries(${MODULE_NAME} PRIVATE rt pthread)
 endif()
 
+target_link_libraries(${MODULE_NAME} PRIVATE spdlog::spdlog)
 target_link_libraries(${MODULE_NAME} PRIVATE ${CMAKE_JS_LIB})
 
 set_target_properties(${MODULE_NAME} PROPERTIES PREFIX "" SUFFIX ".node")

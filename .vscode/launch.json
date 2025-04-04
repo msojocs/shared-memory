@@ -9,8 +9,8 @@
       "request": "launch",
       "name": "Debug",
       "program": "node",
-      "args": ["${workspaceFolder}/test/set.js"],
-      "cwd": "${workspaceFolder}/build"
+      "args": ["${workspaceFolder}/test/get.js"],
+      "cwd": "${workspaceFolder}"
     }
   ]
 }

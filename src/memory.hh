@@ -27,6 +27,9 @@ namespace SharedMemory {
     void log(const std::string& message);
     void log(const char* format, ...);
 
+    // 清理控制台回调函数
+    void cleanup_console();
+
     // 共享内存头部结构
     struct SharedMemoryHeader {
         size_t size;          // 用户数据大小

@@ -1,10 +1,16 @@
 #include <sys/types.h>
 #include "./memory.hh"
 #include <napi.h>
+#include <cstdlib>
 
 Napi::Value version(const Napi::CallbackInfo &info) {
   
   return Napi::String::New(info.Env(), "1352");
+}
+
+// 模块卸载时的清理函数
+static void Cleanup() {
+  SharedMemory::cleanup_console();
 }
 
 static Napi::Object Init(Napi::Env env, Napi::Object exports) {
@@ -18,6 +24,9 @@ static Napi::Object Init(Napi::Env env, Napi::Object exports) {
               Napi::Function::New(env, SharedMemory::remove_memory));
   exports.Set(Napi::String::New(env, "version"),
               Napi::Function::New(env, version));
+
+  // 注册程序退出时的清理函数
+  std::atexit(Cleanup);
 
   return exports;
 }
