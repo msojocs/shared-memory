@@ -1,5 +1,4 @@
 #include "napi.h"
-#include <windows.h>
 #include "../memory.hh"
 #include <cstring>
 #include <algorithm>

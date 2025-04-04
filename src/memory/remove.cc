@@ -1,5 +1,4 @@
 #include "napi.h"
-#include <windows.h>
 #include "../memory.hh"
 #include <cstring>
 #include <memory>
@@ -26,6 +25,8 @@ namespace SharedMemory {
             // 从全局管理器中移除地址
             AddressManager::getInstance().removeAddress(key);
             
+#ifdef _WIN32
+            // Windows实现
             // 尝试打开共享内存
             HANDLE hMapFile = OpenFileMappingA(
                 FILE_MAP_ALL_ACCESS,  // 读写权限
@@ -51,6 +52,26 @@ namespace SharedMemory {
                 CloseHandle(hMutex);
                 log("Closed mutex handle");
             }
+#else
+            // Linux实现
+            // 尝试删除共享内存
+            std::string shm_name = "/" + key;
+            if (shm_unlink(shm_name.c_str()) == 0) {
+                log("Removed shared memory: %s", shm_name.c_str());
+            } else if (errno != ENOENT) { // 忽略"不存在"错误
+                log("Failed to remove shared memory: %s, error: %s", 
+                    shm_name.c_str(), strerror(errno));
+            }
+            
+            // 尝试删除互斥锁
+            std::string mutex_name = "/SharedMemoryMutex_" + key;
+            if (sem_unlink(mutex_name.c_str()) == 0) {
+                log("Removed mutex: %s", mutex_name.c_str());
+            } else if (errno != ENOENT) { // 忽略"不存在"错误
+                log("Failed to remove mutex: %s, error: %s", 
+                    mutex_name.c_str(), strerror(errno));
+            }
+#endif
             
             log("Shared memory removed: key=%s", key.c_str());
             
