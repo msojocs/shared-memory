@@ -46,7 +46,7 @@ namespace SharedMemory {
             
             // 创建ArrayBuffer，直接映射到共享内存
             auto buffer = Napi::ArrayBuffer::New(env, data_addr, data_size);
-            
+
             
             // 将SharedMemoryManager对象存储在buffer的属性中，防止被垃圾回收
             buffer.Set("_manager", Napi::External<std::shared_ptr<SharedMemoryManager>>::New(env, &manager));

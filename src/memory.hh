@@ -1,3 +1,5 @@
+#pragma once
+
 #ifndef MEMORY_HH
 #define MEMORY_HH
 #include "napi.h"
@@ -5,6 +7,7 @@
 #include <memory>
 #include <string>
 #include <map>
+#include <mutex>
 
 namespace SharedMemory {
     // 全局回调函数
@@ -17,6 +20,7 @@ namespace SharedMemory {
     // 共享内存头部结构
     struct SharedMemoryHeader {
         size_t size;          // 用户数据大小
+        int version;          // 版本号
     };
 
     // 共享内存地址管理器
@@ -52,22 +56,39 @@ namespace SharedMemory {
         std::mutex mutex_;
     };
 
-    class SharedMemoryManager {
+    // 共享内存管理器类
+    class SharedMemoryManager : public std::enable_shared_from_this<SharedMemoryManager> {
     public:
-        SharedMemoryManager(const std::string& key, bool create, size_t size = 0);
+        // 构造函数
+        SharedMemoryManager(const std::string& key, bool create = false, size_t size = 0);
+        
+        // 析构函数
         ~SharedMemoryManager();
-
+        
+        // 获取共享内存地址
         void* get_address() const { return address_; }
-        void* get_data_address() const { return static_cast<char*>(address_) + sizeof(SharedMemoryHeader); }
-        size_t get_size() const { return size_; }  // 返回用户请求的大小
+        
+        // 获取共享内存大小
+        size_t get_size() const { return size_; }
+        
+        // 获取文件路径
+        const std::string& get_file_path() const { return file_path_; }
+        
+        // 获取版本号
+        int get_version() const { 
+            if (address_) {
+                return static_cast<SharedMemoryHeader*>(address_)->version;
+            }
+            return 0;
+        }
         
     private:
-        HANDLE file_mapping_;
-        HANDLE mutex_;
-        void* address_;
-        size_t size_;          // 用户请求的大小
-        size_t actual_size_;   // 实际分配的大小（页面对齐）
-        std::string key_;
+        std::string key_;           // 共享内存键名
+        size_t size_;               // 数据区大小
+        void* address_;             // 共享内存地址
+        HANDLE file_mapping_;       // 文件映射句柄
+        HANDLE mutex_;              // 互斥锁句柄
+        std::string file_path_;     // 文件路径
     };
 
     /**
