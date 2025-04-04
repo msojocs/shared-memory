@@ -97,16 +97,16 @@ add_library(${MODULE_NAME}
     ${CMAKE_JS_SRC}
     )
 if (WIN32)
-    # message("生成 node_api.lib")
-    # execute_process(COMMAND
-    #     ${CMAKE_AR} /def:node_api.def /out:node_api.lib /machine:x86 ${CMAKE_STATIC_LINKER_FLAGS}
-    #     WORKING_DIRECTORY ${PROJECT_SOURCE_DIR}/node_modules/node-api-headers/def
-    #     COMMAND_ERROR_IS_FATAL ANY
-    # )
-    # target_link_libraries(${MODULE_NAME} PRIVATE ${PROJECT_SOURCE_DIR}/node_modules/node-api-headers/def/node_api.lib)
+    message("生成 node_api.lib")
+    execute_process(COMMAND
+        ${CMAKE_AR} /def:node_api.def /out:node_api.lib /machine:x86 ${CMAKE_STATIC_LINKER_FLAGS}
+        WORKING_DIRECTORY ${PROJECT_SOURCE_DIR}/node_modules/node-api-headers/def
+        COMMAND_ERROR_IS_FATAL ANY
+    )
+    target_link_libraries(${MODULE_NAME} PRIVATE ${PROJECT_SOURCE_DIR}/node_modules/node-api-headers/def/node_api.lib)
 
-    message("整合 node64.lib")
-    target_link_libraries(${MODULE_NAME} PRIVATE ${PROJECT_SOURCE_DIR}/thirds/nwjs/node64.lib)
+    # message("整合 node64.lib")
+    # target_link_libraries(${MODULE_NAME} PRIVATE ${PROJECT_SOURCE_DIR}/thirds/nwjs/node64.lib)
 endif()
 target_link_libraries(${MODULE_NAME} PRIVATE ${CMAKE_JS_LIB})
 

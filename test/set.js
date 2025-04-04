@@ -40,11 +40,10 @@ process.on('exit', () => {
         console.info('共享内存创建成功', memSet);
         
         // 创建一个Uint8Array视图，用于访问ArrayBuffer数据
-        let memSetView = new Uint8Array(memSet);
         for (let i = 0; i < length; i++) {
-            memSetView[i] = i;
+            memSet[i] = i;
         }
-        console.info('写入数据完成', memSetView);
+        console.info('写入数据完成', memSet);
         
         // 打印初始状态
         console.info('------print initial state---------')
@@ -61,11 +60,10 @@ process.on('exit', () => {
         console.info('共享内存获取成功', memGet);
         
         // 创建一个Uint8Array视图，用于访问ArrayBuffer数据
-        let memGetView = new Uint8Array(memGet);
         for (let i = 0; i < length; i++) {
-            if (memGetView[i] !== i)
+            if (memGet[i] !== i)
             {
-                console.info('数据不一致！', memGetView[i], i);
+                console.info('数据不一致！', memGet[i], i);
             }
         }
         
@@ -91,8 +89,6 @@ process.on('exit', () => {
         // 确保在退出前释放所有引用
         memSet = null;
         memGet = null;
-        memSetView = null;
-        memGetView = null;
         
         // 等待一段时间，确保所有资源都被释放
         await sleep(1000);
