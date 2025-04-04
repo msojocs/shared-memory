@@ -51,6 +51,12 @@ process.on('uncaughtException', (err) => {
         try {
             const removed = sharedMemory.removeMemory(key);
             console.log('共享内存已清理:', removed);
+            try{
+                console.info('mem: ', sharedMemory.getMemory(key))
+            }
+            catch(e){
+                console.info('无法获取共享内存，清理成功');
+            }
         } catch (cleanupError) {
             console.error('清理共享内存失败:', cleanupError);
             console.error('错误堆栈:', cleanupError.stack);

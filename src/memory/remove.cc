@@ -3,6 +3,10 @@
 #include <cstring>
 #include <memory>
 
+#ifdef _WIN32
+#include <shlobj.h> // 用于CSIDL_PERSONAL
+#endif
+
 namespace SharedMemory {
     Napi::Boolean remove_memory(const Napi::CallbackInfo &info) {
         Napi::Env env = info.Env();
@@ -51,6 +55,37 @@ namespace SharedMemory {
             if (hMutex != NULL) {
                 CloseHandle(hMutex);
                 log("Closed mutex handle");
+            }
+            
+            // 尝试删除实际文件
+            // 获取用户目录
+            char user_path[MAX_PATH];
+            std::string file_path;
+            
+            if (SUCCEEDED(SHGetFolderPathA(NULL, CSIDL_PERSONAL, NULL, 0, user_path))) {
+                log("User path: %s", user_path);
+                file_path = std::string(user_path) + "\\SharedMemory\\" + key + ".dat";
+            } else {
+                // 如果获取用户目录失败，使用当前目录
+                GetCurrentDirectoryA(MAX_PATH, user_path);
+                log("Using current directory: %s", user_path);
+                file_path = std::string(user_path) + "\\SharedMemory\\" + key + ".dat";
+            }
+            
+            // 尝试删除文件
+            if (DeleteFileA(file_path.c_str())) {
+                log("Deleted file: %s", file_path.c_str());
+            } else {
+                DWORD error = GetLastError();
+                if (error != ERROR_FILE_NOT_FOUND) {
+                    log("Failed to delete file: %s, error code: %lu", file_path.c_str(), error);
+                }
+            }
+            
+            // 尝试删除目录（如果为空）
+            std::string dir_path = std::string(user_path) + "\\SharedMemory";
+            if (RemoveDirectoryA(dir_path.c_str())) {
+                log("Removed directory: %s", dir_path.c_str());
             }
 #else
             // Linux实现
