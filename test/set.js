@@ -10,8 +10,9 @@ process.on('uncaughtException', (err) => {
     try {
         await sleep(1000);
         const key = "2123";
-        const length = 1024; // 共享内存的大小（字节）
+        const length = 4081; // 共享内存的大小（字节）
         
+        sharedMemory.setConsole(console.info)
         console.info('-------set--------')
         // 创建共享内存
         const result = sharedMemory.setMemory(key, length);
@@ -28,11 +29,11 @@ process.on('uncaughtException', (err) => {
         try {
             // 修改共享内存中的数据，只写入前100个字节
             console.log('开始写入数据...');
-            for (let i = 0; i < Math.min(100, sharedBufferView.length); i++) {
-                console.log(`已写入 ${i} 字节...`);
+            for (let i = 0; i < sharedBufferView.length; i++) {
+                // console.log(`已写入 ${i} 字节...`);
                 sharedBufferView[i] = i % 256; // 填充一些数据
             }
-            console.info('写入数据成功');
+            console.info('写入数据成功', 4080, sharedBufferView[4080], sharedBufferView[4081]);
         } catch (writeError) {
             console.error('写入数据失败:', writeError);
             console.error('错误堆栈:', writeError.stack);
@@ -43,7 +44,7 @@ process.on('uncaughtException', (err) => {
         console.log('Data after write (first 10 bytes):', sharedBufferView.slice(0, 10));
         
         console.info('-------sleep 5s--------')
-        await sleep(5000); // 减少等待时间
+        await sleep(10000); // 减少等待时间
         
         // 清理共享内存
         console.info('-------cleanup--------')

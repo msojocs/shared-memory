@@ -46,24 +46,15 @@ namespace SharedMemory {
             
             // 获取数据区域的地址
             void* data_addr = static_cast<char*>(addr) + sizeof(SharedMemoryHeader);
+            memset(data_addr, 0, length);
             
             // 创建ArrayBuffer，直接映射到共享内存
-            auto buffer = Napi::ArrayBuffer::New(env, data_addr, size);
-         
-            return buffer;
+            auto buffer = Napi::ArrayBuffer::New(env, data_addr, length);
+            
             // 将SharedMemoryManager对象存储在buffer的属性中，防止被垃圾回收
-            // buffer.Set("_manager", Napi::External<std::shared_ptr<SharedMemoryManager>>::New(env, &manager));
+            buffer.Set("_manager", Napi::External<std::shared_ptr<SharedMemoryManager>>::New(env, &manager));
             
-            // // 设置清理回调，确保SharedMemoryManager对象不会被过早释放
-            // buffer.Set("_cleanup", Napi::Function::New(env, [manager](const Napi::CallbackInfo& info) {
-            //     log("Cleanup callback called, manager will be destroyed.");
-            //     return info.Env().Undefined();
-            // }));
-            
-            // // 创建一个Uint8Array视图，确保JavaScript可以正确访问数据
-            // auto uint8Array = Napi::Uint8Array::New(env, length, buffer, 0);
-            
-            // return uint8Array;
+            return buffer;
             
         } catch (const std::exception& e) {
             log("Error: %s", e.what());

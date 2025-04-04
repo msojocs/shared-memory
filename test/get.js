@@ -4,6 +4,7 @@ const key = "2123";
 try {
     // 获取共享内存
     console.info('-------get--------')
+    sharedMemory.setConsole(console.info)
     const result = sharedMemory.getMemory(key);
     if (!result || !result.byteLength) {
         throw new Error('获取共享内存失败或共享内存为空');
@@ -17,12 +18,14 @@ try {
     // 验证数据
     console.info('------verify data---------')
     let isValid = true;
-    for (let i = 0; i < Math.min(100, sharedBufferView.length); i++) {
+    for (let i = 0; i < sharedBufferView.length; i++) {
+        // console.info('verify', i, i % 256)
         if (sharedBufferView[i] !== i % 256) {
             console.error(`数据验证失败: 位置 ${i} 的值为 ${sharedBufferView[i]}，期望值为 ${i % 256}`);
             isValid = false;
             break;
         }
+        // console.info('verify', i, 'end')
     }
     if (isValid) {
         console.log('数据验证成功');

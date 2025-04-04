@@ -1,4 +1,5 @@
 #include "../memory.hh"
+#include <cmath>
 #include <cstring>
 #include <algorithm>
 #include <memory>
@@ -50,6 +51,8 @@ namespace SharedMemory {
     {
         // 计算实际需要分配的大小（包括头部）
         size_t total_size = sizeof(SharedMemoryHeader) + size;
+        log("Size of header: %zu", sizeof(SharedMemoryHeader));
+        log("Size of header + size: %zu", total_size);
         
 #ifdef _WIN32
         // Windows实现
@@ -169,45 +172,18 @@ namespace SharedMemory {
             }
             
             // 创建文件映射
-            file_mapping_ = CreateFileMappingA(
-                file_handle,          // 使用实际文件
-                NULL,                 // 默认安全属性
-                PAGE_READWRITE,       // 读写权限
-                0,                    // 最大大小的高32位
-                total_size,           // 最大大小的低32位
-                NULL                  // 不使用命名映射
-            );
+            const size_t MAX_MAPPING_SIZE = 1024 * 1024 * 1024; // 1GB per mapping
+            size_t remaining_size = total_size;
+            size_t offset = 0;
             
-            // 关闭文件句柄，文件映射会保持文件打开
-            CloseHandle(file_handle);
-            
-            if (!file_mapping_) {
-                DWORD error = GetLastError();
-                log("Failed to create file mapping, error code: %lu", error);
+            // 创建映射
+            bool success = create_mapping(file_handle, remaining_size);
+            if (!success) {
+                CloseHandle(file_handle);
                 ReleaseMutex(mutex_);
                 CloseHandle(mutex_);
                 mutex_ = nullptr;
-                throw std::runtime_error("Failed to create file mapping");
-            }
-            
-            // 映射视图
-            address_ = MapViewOfFile(
-                file_mapping_,
-                FILE_MAP_ALL_ACCESS,
-                0,
-                0,
-                total_size
-            );
-            
-            if (!address_) {
-                DWORD error = GetLastError();
-                log("Failed to map view of file, error code: %lu", error);
-                CloseHandle(file_mapping_);
-                file_mapping_ = nullptr;
-                ReleaseMutex(mutex_);
-                CloseHandle(mutex_);
-                mutex_ = nullptr;
-                throw std::runtime_error("Failed to map view of file");
+                throw std::runtime_error("Failed to create mapping");
             }
             
             // 如果是新创建的共享内存，初始化头部
@@ -217,6 +193,25 @@ namespace SharedMemory {
                 header->version = 1;
                 log("Initialized shared memory header: size=%zu, version=%d", size, header->version);
             }
+            else {
+                // 读取头部信息
+                SharedMemoryHeader* header = static_cast<SharedMemoryHeader*>(address_);
+                size = header->size;
+                log("Read shared memory header: size=%zu, version=%d", size, header->version);
+                
+                // 以头部信息为基准，重新映射
+                success = create_mapping(file_handle, size + sizeof(SharedMemoryHeader));
+                if (!success) {
+                    CloseHandle(file_handle);
+                    ReleaseMutex(mutex_);
+                    CloseHandle(mutex_);
+                    mutex_ = nullptr;
+                    throw std::runtime_error("Failed to create mapping with header size");
+                }
+            }
+            
+            // 关闭文件句柄，文件映射会保持文件打开
+            CloseHandle(file_handle);
             
             // 存储文件路径
             file_path_ = file_path;
@@ -390,5 +385,52 @@ namespace SharedMemory {
         log("Shared memory manager destroyed: key=%s, file=%s", 
             key_.c_str(), 
             file_path_.c_str());
+    }
+
+    bool SharedMemoryManager::create_mapping(HANDLE file_handle, size_t mapping_size) {
+        // 如果已存在映射，先清理
+        if (file_mapping_) {
+            CloseHandle(file_mapping_);
+            file_mapping_ = nullptr;
+        }
+        if (address_) {
+            UnmapViewOfFile(address_);
+            address_ = nullptr;
+        }
+        
+        // 创建文件映射
+        file_mapping_ = CreateFileMappingA(
+            file_handle,          // 使用实际文件
+            NULL,                 // 默认安全属性
+            PAGE_READWRITE,       // 读写权限
+            0,                    // 最大大小的高32位
+            mapping_size,         // 最大大小的低32位
+            NULL                  // 不使用命名映射
+        );
+        
+        if (!file_mapping_) {
+            DWORD error = GetLastError();
+            log("Failed to create file mapping, error code: %lu, size: %zu", error, mapping_size);
+            return false;
+        }
+        
+        // 映射视图
+        address_ = MapViewOfFile(
+            file_mapping_,
+            FILE_MAP_ALL_ACCESS,
+            0,
+            0,
+            mapping_size
+        );
+        
+        if (!address_) {
+            DWORD error = GetLastError();
+            log("Failed to map view of file, error code: %lu, size: %zu", error, mapping_size);
+            CloseHandle(file_mapping_);
+            file_mapping_ = nullptr;
+            return false;
+        }
+        
+        return true;
     }
 } 
