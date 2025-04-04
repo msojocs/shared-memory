@@ -2,9 +2,15 @@
 #include <cstring>
 #include <algorithm>
 #include <memory>
+#include <mutex>
+
+#ifdef _WIN32
 #include <direct.h> // 用于Windows目录创建
 #include <shlobj.h> // 用于获取用户目录
-#include <mutex>
+#else
+#include <sys/stat.h> // 用于创建目录
+#include <errno.h>    // 用于错误处理
+#endif
 
 namespace SharedMemory {
 
@@ -13,10 +19,18 @@ namespace SharedMemory {
     static std::mutex g_managers_mutex;
 
     SharedMemoryManager::SharedMemoryManager(const std::string& key, bool create, size_t size) 
-        : key_(key), size_(size), address_(nullptr), file_mapping_(nullptr), mutex_(nullptr) {
+        : key_(key), size_(size), address_(nullptr)
+#ifdef _WIN32
+        , file_mapping_(nullptr), mutex_(nullptr)
+#else
+        , mutex_(nullptr)
+#endif
+    {
         // 计算实际需要分配的大小（包括头部）
         size_t total_size = sizeof(SharedMemoryHeader) + size;
         
+#ifdef _WIN32
+        // Windows实现
         // 创建互斥锁名称
         std::string mutex_name = "Global\\SharedMemoryMutex_" + key;
         
@@ -166,9 +180,6 @@ namespace SharedMemory {
             // 存储文件路径
             file_path_ = file_path;
             
-            // 不再将管理器添加到全局映射中，避免循环引用
-            // 这可能是导致堆损坏的原因
-            
             log("Shared memory %s: key=%s, size=%zu, address=%p, file=%s", 
                 create ? "created" : "opened", 
                 key.c_str(), 
@@ -199,9 +210,110 @@ namespace SharedMemory {
         
         // 释放互斥锁
         ReleaseMutex(mutex_);
+#else
+        // Linux实现
+        // 创建共享内存名称
+        std::string shm_name = "/" + key;
+        
+        // 创建互斥锁名称
+        std::string mutex_name = "/SharedMemoryMutex_" + key;
+        
+        // 创建或打开互斥锁
+        mutex_ = sem_open(mutex_name.c_str(), O_CREAT, 0644, 1);
+        if (mutex_ == SEM_FAILED) {
+            log("Failed to create mutex, error: %s", strerror(errno));
+            throw std::runtime_error("Failed to create mutex");
+        }
+        
+        // 获取互斥锁
+        if (sem_wait(mutex_) != 0) {
+            log("Failed to acquire mutex, error: %s", strerror(errno));
+            sem_close(mutex_);
+            mutex_ = nullptr;
+            throw std::runtime_error("Failed to acquire mutex");
+        }
+        
+        try {
+            int flags = O_RDWR;
+            if (create) {
+                flags |= O_CREAT;
+            }
+            
+            // 创建或打开共享内存
+            int fd = shm_open(shm_name.c_str(), flags, 0644);
+            if (fd == -1) {
+                log("Failed to open shared memory, error: %s", strerror(errno));
+                sem_post(mutex_);
+                sem_close(mutex_);
+                mutex_ = nullptr;
+                throw std::runtime_error("Failed to open shared memory");
+            }
+            
+            if (create) {
+                // 设置共享内存大小
+                if (ftruncate(fd, total_size) == -1) {
+                    log("Failed to set shared memory size, error: %s", strerror(errno));
+                    close(fd);
+                    sem_post(mutex_);
+                    sem_close(mutex_);
+                    mutex_ = nullptr;
+                    throw std::runtime_error("Failed to set shared memory size");
+                }
+            }
+            
+            // 映射共享内存
+            address_ = mmap(NULL, total_size, PROT_READ | PROT_WRITE, MAP_SHARED, fd, 0);
+            close(fd);
+            
+            if (address_ == MAP_FAILED) {
+                log("Failed to map shared memory, error: %s", strerror(errno));
+                sem_post(mutex_);
+                sem_close(mutex_);
+                mutex_ = nullptr;
+                throw std::runtime_error("Failed to map shared memory");
+            }
+            
+            // 如果是新创建的共享内存，初始化头部
+            if (create) {
+                SharedMemoryHeader* header = static_cast<SharedMemoryHeader*>(address_);
+                header->size = size;
+                header->version = 1;
+                log("Initialized shared memory header: size=%zu, version=%d", size, header->version);
+            }
+            
+            // 存储共享内存名称
+            file_path_ = shm_name;
+            
+            log("Shared memory %s: key=%s, size=%zu, address=%p", 
+                create ? "created" : "opened", 
+                key.c_str(), 
+                size, 
+                address_);
+                
+        } catch (...) {
+            // 确保在发生异常时释放资源
+            if (address_ && address_ != MAP_FAILED) {
+                munmap(address_, total_size);
+                address_ = nullptr;
+            }
+            
+            if (mutex_) {
+                sem_post(mutex_);
+                sem_close(mutex_);
+                mutex_ = nullptr;
+            }
+            
+            throw;
+        }
+        
+        // 释放互斥锁
+        sem_post(mutex_);
+#endif
     }
     
     SharedMemoryManager::~SharedMemoryManager() {
+#ifdef _WIN32
+        // Windows实现
         // 释放资源
         if (address_) {
             UnmapViewOfFile(address_);
@@ -218,8 +330,21 @@ namespace SharedMemory {
             CloseHandle(mutex_);
             mutex_ = nullptr;
         }
+#else
+        // Linux实现
+        // 释放资源
+        if (address_ && address_ != MAP_FAILED) {
+            size_t total_size = sizeof(SharedMemoryHeader) + size_;
+            munmap(address_, total_size);
+            address_ = nullptr;
+        }
         
-        // 不再从全局管理器中移除，因为我们不再添加
+        if (mutex_) {
+            sem_post(mutex_);
+            sem_close(mutex_);
+            mutex_ = nullptr;
+        }
+#endif
         
         log("Shared memory manager destroyed: key=%s, file=%s", 
             key_.c_str(), 

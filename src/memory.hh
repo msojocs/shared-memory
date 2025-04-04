@@ -3,11 +3,21 @@
 #ifndef MEMORY_HH
 #define MEMORY_HH
 #include "napi.h"
-#include <windows.h>
 #include <memory>
 #include <string>
 #include <map>
 #include <mutex>
+
+// 平台特定的头文件
+#ifdef _WIN32
+#include <windows.h>
+#else
+#include <fcntl.h>
+#include <sys/mman.h>
+#include <sys/stat.h>
+#include <unistd.h>
+#include <semaphore.h>
+#endif
 
 namespace SharedMemory {
     // 全局回调函数
@@ -86,9 +96,14 @@ namespace SharedMemory {
         std::string key_;           // 共享内存键名
         size_t size_;               // 数据区大小
         void* address_;             // 共享内存地址
+        std::string file_path_;     // 文件路径
+
+#ifdef _WIN32
         HANDLE file_mapping_;       // 文件映射句柄
         HANDLE mutex_;              // 互斥锁句柄
-        std::string file_path_;     // 文件路径
+#else
+        sem_t* mutex_;              // 互斥锁
+#endif
     };
 
     /**

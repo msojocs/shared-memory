@@ -21,6 +21,9 @@ if(MSVC)
     set(VCPKG_TARGET_TRIPLET x64-windows-static)
     set(CMAKE_MSVC_RUNTIME_LIBRARY "MultiThreaded$<$<CONFIG:Debug>:Debug>")
     set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} /utf-8")
+else()
+    # Linux specific settings
+    set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -D_REENTRANT")
 endif()
 set(CMAKE_TOOLCHAIN_FILE "${VCPKG_ROOT}/scripts/buildsystems/vcpkg.cmake" CACHE STRING "Vcpkg toolchain file")
 include("${VCPKG_ROOT}/scripts/buildsystems/vcpkg.cmake")
@@ -91,11 +94,13 @@ set(SRC_DIR_LIST
     src/memory/console.cc
     src/memory.hh
 )
+
 add_library(${MODULE_NAME}
     SHARED
     ${SRC_DIR_LIST}
     ${CMAKE_JS_SRC}
     )
+
 if (WIN32)
     message("生成 node_api.lib")
     execute_process(COMMAND
@@ -104,10 +109,11 @@ if (WIN32)
         COMMAND_ERROR_IS_FATAL ANY
     )
     target_link_libraries(${MODULE_NAME} PRIVATE ${PROJECT_SOURCE_DIR}/node_modules/node-api-headers/def/node_api.lib)
-
-    # message("整合 node64.lib")
-    # target_link_libraries(${MODULE_NAME} PRIVATE ${PROJECT_SOURCE_DIR}/thirds/nwjs/node64.lib)
+else()
+    # Linux specific libraries
+    target_link_libraries(${MODULE_NAME} PRIVATE rt pthread)
 endif()
+
 target_link_libraries(${MODULE_NAME} PRIVATE ${CMAKE_JS_LIB})
 
 set_target_properties(${MODULE_NAME} PROPERTIES PREFIX "" SUFFIX ".node")
