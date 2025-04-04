@@ -16,7 +16,7 @@ namespace SharedMemory {
     static std::shared_ptr<mapped_region> g_region;
     static std::shared_ptr<named_mutex> g_mutex;
     
-    Napi::Uint8Array get_memory(const Napi::CallbackInfo &info) {
+    Napi::Value get_memory(const Napi::CallbackInfo &info) {
         spdlog::info("Get memory call.");
         auto env = info.Env();
         
@@ -61,11 +61,7 @@ namespace SharedMemory {
             Napi::ArrayBuffer buffer = Napi::ArrayBuffer::New(env, shared_memory, size, deleter);
             
             spdlog::info("Create result.");
-            // 从ArrayBuffer创建一个Uint8Array
-            Napi::Uint8Array result = Napi::Uint8Array::New(env, size, buffer, 0);
-            
-            spdlog::info("Return result.");
-            return result;
+            return buffer;
         } catch (const std::exception& e) {
             spdlog::error("Error: {}", e.what());
             throw Napi::Error::New(env, std::string("获取共享内存失败: ") + e.what());
