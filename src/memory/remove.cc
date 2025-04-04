@@ -5,6 +5,10 @@
 
 #ifdef _WIN32
 #include <shlobj.h> // 用于CSIDL_PERSONAL
+#else
+#include <fcntl.h>
+#include <sys/stat.h>
+#include <semaphore.h>
 #endif
 
 namespace SharedMemory {
@@ -105,6 +109,31 @@ namespace SharedMemory {
             } else if (errno != ENOENT) { // 忽略"不存在"错误
                 log("Failed to remove mutex: %s, error: %s", 
                     mutex_name.c_str(), strerror(errno));
+            }
+            
+            // 强制删除共享内存文件（如果存在）
+            std::string file_path = "/dev/shm/" + key + ".dat";
+            if (unlink(file_path.c_str()) == 0) {
+                log("Removed shared memory file: %s", file_path.c_str());
+            } else if (errno != ENOENT) { // 忽略"不存在"错误
+                log("Failed to remove shared memory file: %s, error: %s", 
+                    file_path.c_str(), strerror(errno));
+            }
+            
+            // 强制删除信号量文件（如果存在）
+            std::string sem_file_path = "/dev/shm/sem.SharedMemoryMutex_" + key;
+            if (unlink(sem_file_path.c_str()) == 0) {
+                log("Removed semaphore file: %s", sem_file_path.c_str());
+            } else if (errno != ENOENT) { // 忽略"不存在"错误
+                log("Failed to remove semaphore file: %s, error: %s", 
+                    sem_file_path.c_str(), strerror(errno));
+            }
+            
+            // 尝试打开并关闭信号量，以确保它被完全删除
+            sem_t* sem = sem_open(mutex_name.c_str(), 0);
+            if (sem != SEM_FAILED) {
+                sem_close(sem);
+                log("Opened and closed semaphore to ensure it's deleted");
             }
 #endif
             
