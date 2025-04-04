@@ -257,7 +257,7 @@ namespace SharedMemory {
 #else
         // Linux实现
         // 创建共享内存名称
-        std::string shm_name = "/" + key;
+        std::string shm_name = "/" + key + ".dat";
         
         // 创建互斥锁名称
         std::string mutex_name = "/SharedMemoryMutex_" + key;
