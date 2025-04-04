@@ -14,9 +14,6 @@
 
 namespace SharedMemory {
 
-    // 全局管理器，用于跟踪所有共享内存
-    static std::map<std::string, std::shared_ptr<SharedMemoryManager>> g_managers;
-    static std::mutex g_managers_mutex;
 
     // 检测是否在Wine环境下运行
     bool is_running_under_wine() {

@@ -6,74 +6,44 @@ process.on('uncaughtException', (err) => {
     process.exit(1);
 });
 
-// 添加退出处理程序
-process.on('exit', () => {
-    console.info('程序正在退出，清理资源...');
-    try {
-        // 尝试清理所有可能的共享内存
-        const keys = ['mySharedMemory', 'testKey'];
-        for (const key of keys) {
-            try {
-                sharedMemory.removeMemory(key);
-                console.info(`已清理共享内存: ${key}`);
-            } catch (e) {
-                console.error(`清理共享内存 ${key} 失败:`, e);
-            }
-        }
-    } catch (e) {
-        console.error('清理资源时出错:', e);
-    }
-});
-
 (async () => {
     try {
         await sleep(1000);
-        const key = "mySharedMemory";
-        const length = 20; // 共享内存的大小（字节）
+        const key = "2123";
+        const length = 1024; // 共享内存的大小（字节）
         
         console.info('-------set--------')
-        sharedMemory.setConsole(console.info);
-        
         // 创建共享内存
-        console.info('创建共享内存...');
-        let memSet = sharedMemory.setMemory(key, length);
-        console.info('共享内存创建成功', memSet);
-        
-        // 创建一个Uint8Array视图，用于访问ArrayBuffer数据
-        for (let i = 0; i < length; i++) {
-            memSet[i] = i;
+        const result = sharedMemory.setMemory(key, length);
+        if (!result || !result.byteLength) {
+            throw new Error('共享内存创建失败');
         }
-        console.info('写入数据完成', memSet);
+        const sharedBufferView = new Uint8Array(result)
         
-        // 打印初始状态
         console.info('------print initial state---------')
-        console.log('Buffer length:', memSet.byteLength);
+        console.log('Buffer length:', sharedBufferView.length, result.byteLength);
+        console.log('Initial data (first 10 bytes):', sharedBufferView.slice(0, 10));
         
-        // 等待一段时间
-        console.info('-------sleep 1s--------')
-        await sleep(1000);
-        
-        // 获取共享内存
-        console.info('-------get--------')
-        console.info('获取共享内存...');
-        let memGet = sharedMemory.getMemory(key);
-        console.info('共享内存获取成功', memGet);
-        
-        // 创建一个Uint8Array视图，用于访问ArrayBuffer数据
-        for (let i = 0; i < length; i++) {
-            if (memGet[i] !== i)
-            {
-                console.info('数据不一致！', memGet[i], i);
+        console.info('------write---------')
+        try {
+            // 修改共享内存中的数据，只写入前100个字节
+            console.log('开始写入数据...');
+            for (let i = 0; i < Math.min(100, sharedBufferView.length); i++) {
+                console.log(`已写入 ${i} 字节...`);
+                sharedBufferView[i] = i % 256; // 填充一些数据
             }
+            console.info('写入数据成功');
+        } catch (writeError) {
+            console.error('写入数据失败:', writeError);
+            console.error('错误堆栈:', writeError.stack);
+            throw writeError;
         }
         
-        // 打印数据
-        console.info('------print data---------')
-        console.log('Buffer length:', memGet.byteLength);
+        console.info('------print after write---------')
+        console.log('Data after write (first 10 bytes):', sharedBufferView.slice(0, 10));
         
-        // 等待一段时间
         console.info('-------sleep 5s--------')
-        await sleep(5000);
+        await sleep(5000); // 减少等待时间
         
         // 清理共享内存
         console.info('-------cleanup--------')
@@ -82,21 +52,12 @@ process.on('exit', () => {
             console.log('共享内存已清理:', removed);
         } catch (cleanupError) {
             console.error('清理共享内存失败:', cleanupError);
+            console.error('错误堆栈:', cleanupError.stack);
+            throw cleanupError;
         }
-        
-        console.info('测试完成');
-        
-        // 确保在退出前释放所有引用
-        memSet = null;
-        memGet = null;
-        
-        // 等待一段时间，确保所有资源都被释放
-        await sleep(1000);
-        
-        // 正常退出
-        process.exit(0);
     } catch (error) {
         console.error('操作失败:', error);
+        console.error('错误堆栈:', error.stack);
         process.exit(1);
     }
 })();

@@ -5,6 +5,7 @@
 #include <memory>
 
 namespace SharedMemory {
+    static std::shared_ptr<SharedMemoryManager> manager;
     Napi::Value set_memory(const Napi::CallbackInfo &info) {
         Napi::Env env = info.Env();
         
@@ -33,7 +34,7 @@ namespace SharedMemory {
             log("Creating SharedMemoryManager...");
             
             // 创建共享内存管理器
-            auto manager = std::make_shared<SharedMemoryManager>(key, true, length);
+            manager = std::make_shared<SharedMemoryManager>(key, true, length);
             log("SharedMemoryManager created successfully.");
             
             // 获取共享内存的地址和大小
@@ -49,20 +50,20 @@ namespace SharedMemory {
             // 创建ArrayBuffer，直接映射到共享内存
             auto buffer = Napi::ArrayBuffer::New(env, data_addr, size);
          
-            
+            return buffer;
             // 将SharedMemoryManager对象存储在buffer的属性中，防止被垃圾回收
-            buffer.Set("_manager", Napi::External<std::shared_ptr<SharedMemoryManager>>::New(env, &manager));
+            // buffer.Set("_manager", Napi::External<std::shared_ptr<SharedMemoryManager>>::New(env, &manager));
             
-            // 设置清理回调，确保SharedMemoryManager对象不会被过早释放
-            buffer.Set("_cleanup", Napi::Function::New(env, [manager](const Napi::CallbackInfo& info) {
-                log("Cleanup callback called, manager will be destroyed.");
-                return info.Env().Undefined();
-            }));
+            // // 设置清理回调，确保SharedMemoryManager对象不会被过早释放
+            // buffer.Set("_cleanup", Napi::Function::New(env, [manager](const Napi::CallbackInfo& info) {
+            //     log("Cleanup callback called, manager will be destroyed.");
+            //     return info.Env().Undefined();
+            // }));
             
-            // 创建一个Uint8Array视图，确保JavaScript可以正确访问数据
-            auto uint8Array = Napi::Uint8Array::New(env, length, buffer, 0);
+            // // 创建一个Uint8Array视图，确保JavaScript可以正确访问数据
+            // auto uint8Array = Napi::Uint8Array::New(env, length, buffer, 0);
             
-            return uint8Array;
+            // return uint8Array;
             
         } catch (const std::exception& e) {
             log("Error: %s", e.what());
