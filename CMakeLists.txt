@@ -14,15 +14,11 @@ set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -fPIC")
 set(CMAKE_VERBOSE_MAKEFILE ON)
 set(PKG_TOOL pnpm)
 set(TARGET_ARCH x64)
-set(Boost_USE_STATIC_LIBS ON)
-set(Boost_USE_STATIC_RUNTIME ON)
 if(MSVC)
     execute_process(COMMAND
         chcp 65001
     )
     set(VCPKG_TARGET_TRIPLET x64-windows-static)
-    # set(CMAKE_RUNTIME_OUTPUT_DIRECTORY_DEBUG "${CMAKE_BINARY_DIR}/Debug")
-    # set(CMAKE_RUNTIME_OUTPUT_DIRECTORY_RELEASE "${CMAKE_BINARY_DIR}/Release")
     set(CMAKE_MSVC_RUNTIME_LIBRARY "MultiThreaded$<$<CONFIG:Debug>:Debug>")
     set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} /utf-8")
 endif()
@@ -31,12 +27,6 @@ include("${VCPKG_ROOT}/scripts/buildsystems/vcpkg.cmake")
 
 message("LD_LIBRARY_PATH:" ${LD_LIBRARY_PATH})
 
-find_package(Boost COMPONENTS interprocess REQUIRED)
-find_package(spdlog CONFIG REQUIRED)
-if (Boost_FOUND)
-    include_directories(${Boost_INCLUDE_DIRS})
-    link_directories(${Boost_LIBRARY_DIRS})
-endif ()
 find_program(PNPM_EXECUTABLE pnpm)
 if(NOT PNPM_EXECUTABLE)
     message(FATAL_ERROR "pnpm not found!")
@@ -45,11 +35,6 @@ if(WIN32)
     set(PNPM_EXECUTABLE "${PNPM_EXECUTABLE}.CMD")
 endif()
 
-# message("安装 Node 包")
-# execute_process(COMMAND
-#         ${PKG_TOOL} install
-#         WORKING_DIRECTORY ${PROJECT_SOURCE_DIR}
-# )
 message("CMAKE_CXX_FLAGS:${CMAKE_CXX_FLAGS}")
 message("获取 cmake-js 配置")
 message(${PROJECT_SOURCE_DIR})
@@ -74,7 +59,6 @@ execute_process(COMMAND
     OUTPUT_VARIABLE CMAKE_JS_INC
     OUTPUT_STRIP_TRAILING_WHITESPACE
 )
-# string(REPLACE ";" "\;" CMAKE_JS_INC "${CMAKE_JS_INC}")
 message("CMAKE_JS_INC:" ${CMAKE_JS_INC})
 foreach(item IN LISTS CMAKE_JS_INC)
     message("include: ${item}")
@@ -96,7 +80,6 @@ message("CMAKE_JS_LIB: " ${CMAKE_JS_LIB})
 
 include_directories(${CMAKE_JS_SRC})
 include_directories(${NODE_ADDON_API_DIR})
-include_directories(${Boost_INCLUDE_DIRS})
 
 set(MODULE_NAME sharedMemory)
 set(SRC_DIR_LIST
@@ -105,6 +88,7 @@ set(SRC_DIR_LIST
     src/memory/get.cc
     src/memory/remove.cc
     src/memory/manager.cc
+    src/memory/console.cc
     src/memory.hh
 )
 add_library(${MODULE_NAME}
@@ -113,12 +97,18 @@ add_library(${MODULE_NAME}
     ${CMAKE_JS_SRC}
     )
 if (WIN32)
+    # message("生成 node_api.lib")
+    # execute_process(COMMAND
+    #     ${CMAKE_AR} /def:node_api.def /out:node_api.lib /machine:x86 ${CMAKE_STATIC_LINKER_FLAGS}
+    #     WORKING_DIRECTORY ${PROJECT_SOURCE_DIR}/node_modules/node-api-headers/def
+    #     COMMAND_ERROR_IS_FATAL ANY
+    # )
+    # target_link_libraries(${MODULE_NAME} PRIVATE ${PROJECT_SOURCE_DIR}/node_modules/node-api-headers/def/node_api.lib)
+
     message("整合 node64.lib")
     target_link_libraries(${MODULE_NAME} PRIVATE ${PROJECT_SOURCE_DIR}/thirds/nwjs/node64.lib)
 endif()
-target_link_libraries(${MODULE_NAME} PRIVATE Boost::interprocess)
 target_link_libraries(${MODULE_NAME} PRIVATE ${CMAKE_JS_LIB})
-target_link_libraries(${MODULE_NAME} PRIVATE spdlog::spdlog)
 
 set_target_properties(${MODULE_NAME} PROPERTIES PREFIX "" SUFFIX ".node")
 

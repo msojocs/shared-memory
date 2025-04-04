@@ -1,49 +1,66 @@
 #include "napi.h"
-#include <boost/interprocess/managed_shared_memory.hpp>
-#include <boost/interprocess/sync/named_mutex.hpp>
+#include <windows.h>
 #include "../memory.hh"
-#include "spdlog/spdlog.h"
+#include <cstring>
+#include <memory>
 
 namespace SharedMemory {
-
-    using namespace boost::interprocess;
     Napi::Boolean remove_memory(const Napi::CallbackInfo &info) {
-        spdlog::info("Remove memory call.");
-        auto env = info.Env();
+        Napi::Env env = info.Env();
+        
+        // 参数检查
+        if (info.Length() < 1) {
+            throw Napi::Error::New(env, "需要一个参数: key");
+        }
+        
+        if (!info[0].IsString()) {
+            throw Napi::Error::New(env, "参数必须是字符串类型的key");
+        }
+        
+        std::string key = info[0].As<Napi::String>().Utf8Value();
         
         try {
-            if (info.Length() != 1) {
-                throw std::runtime_error("参数长度必须为1!");
-            }
-            auto keyValue = info[0];
-            if (!keyValue.IsString()) {
-                throw std::runtime_error("参数必须是字符串!");
+            log("Remove memory call.");
+            log("Read arguments.");
+            
+            // 从全局管理器中移除地址
+            AddressManager::getInstance().removeAddress(key);
+            
+            // 尝试打开共享内存
+            HANDLE hMapFile = OpenFileMappingA(
+                FILE_MAP_ALL_ACCESS,  // 读写权限
+                FALSE,               // 不继承句柄
+                ("SharedMemory_" + key).c_str()  // 共享内存名称
+            );
+            
+            if (hMapFile != NULL) {
+                // 关闭句柄，这会在最后一个引用被关闭时自动删除共享内存
+                CloseHandle(hMapFile);
+                log("Closed file mapping handle");
             }
             
-            spdlog::info("Read arguments.");
-            auto key = keyValue.As<Napi::String>().Utf8Value();
-            
-            spdlog::info("Remove mutex.");
             // 尝试删除互斥锁
-            try {
-                named_mutex::remove((key + "_mutex").c_str());
-                spdlog::info("Mutex removed successfully.");
-            } catch (const std::exception& e) {
-                spdlog::warn("Failed to remove mutex: {}", e.what());
-                // 忽略互斥锁删除错误
+            std::string mutex_name = key + "_mutex";
+            HANDLE hMutex = OpenMutexA(
+                DELETE,              // 请求删除权限
+                FALSE,              // 不继承句柄
+                mutex_name.c_str()  // 互斥锁名称
+            );
+            
+            if (hMutex != NULL) {
+                CloseHandle(hMutex);
+                log("Closed mutex handle");
             }
             
-            spdlog::info("Remove shared memory.");
-            // 尝试删除共享内存
-            bool removed = shared_memory_object::remove(key.c_str());
-            spdlog::info("Shared memory removed: {}", removed);
+            log("Shared memory removed: key=%s", key.c_str());
             
-            return Napi::Boolean::New(env, removed);
+            return Napi::Boolean::New(env, true);
+            
         } catch (const std::exception& e) {
-            spdlog::error("Error: {}", e.what());
-            throw Napi::Error::New(env, std::string("删除共享内存失败: ") + e.what());
+            log("Error: %s", e.what());
+            throw Napi::Error::New(env, e.what());
         } catch (...) {
-            spdlog::error("Unknown error occurred");
+            log("Unknown error occurred");
             throw Napi::Error::New(env, "删除共享内存时发生未知错误");
         }
     }

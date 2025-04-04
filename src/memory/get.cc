@@ -1,101 +1,73 @@
 #include "napi.h"
+#include <windows.h>
 #include "../memory.hh"
-#include "spdlog/spdlog.h"
-#include <boost/interprocess/errors.hpp>
+#include <cstring>
+#include <algorithm>
+#include <memory>
 
 namespace SharedMemory {
-    class SharedMemoryWrapper {
-    public:
-        explicit SharedMemoryWrapper(std::shared_ptr<SharedMemoryManager> manager) 
-            : manager_(std::move(manager)) {}
-        
-        void* get_address() const { return manager_->get_address(); }
-        size_t get_size() const { return manager_->get_size(); }
-        
-    private:
-        std::shared_ptr<SharedMemoryManager> manager_;
-    };
-
     Napi::Value get_memory(const Napi::CallbackInfo &info) {
-        spdlog::info("Get memory call.");
-        auto env = info.Env();
+        Napi::Env env = info.Env();
+        
+        // 参数检查
+        if (info.Length() < 1) {
+            throw Napi::Error::New(env, "需要一个参数: key");
+        }
+        
+        if (!info[0].IsString()) {
+            throw Napi::Error::New(env, "参数必须是字符串类型的key");
+        }
+        
+        std::string key = info[0].As<Napi::String>().Utf8Value();
         
         try {
-            if (info.Length() != 1) {
-                throw std::runtime_error("参数长度必须为1!");
-            }
-            auto keyValue = info[0];
-            if (!keyValue.IsString()) {
-                throw std::runtime_error("参数必须是字符串!");
-            }
+            log("Get memory call.");
+            log("Creating SharedMemoryManager...");
             
-            spdlog::info("Read arguments.");
-            auto key = keyValue.As<Napi::String>().Utf8Value();
+            // 创建共享内存管理器
+            auto manager = std::make_shared<SharedMemoryManager>(key, false);
+            log("SharedMemoryManager created successfully.");
             
-            // 检查键名是否为空
-            if (key.empty()) {
-                throw std::runtime_error("键名不能为空!");
-            }
+            // 获取共享内存的地址和大小
+            void* addr = manager->get_address();
+            size_t size = manager->get_size();
             
-            spdlog::info("Opening shared memory with key: {}", key);
+            log("Shared memory opened: key=%s, size=%zu, address=%p", 
+                key.c_str(), size, addr);
             
-            try {
-                // 使用 SharedMemoryManager 打开和管理共享内存
-                spdlog::info("Creating SharedMemoryManager...");
-                auto manager = std::make_shared<SharedMemoryManager>(key, false);
-                spdlog::info("SharedMemoryManager created successfully.");
-                
-                // 获取共享内存的地址和大小
-                spdlog::info("Getting shared memory address and size...");
-                void* address = manager->get_address();
-                size_t size = manager->get_size();
-                spdlog::info("Shared memory address: {}, size: {}", address, size);
-                
-                // 创建一个ArrayBuffer，直接映射到共享内存
-                spdlog::info("Creating ArrayBuffer...");
-                auto deleter = [](void* /*data*/, void* /*hint*/) {
-                    spdlog::info("Buffer cleanup callback called.");
-                };
-                
-                spdlog::info("Creating result...");
-                Napi::ArrayBuffer buffer = Napi::ArrayBuffer::New(env, address, size, deleter);
-                
-                // 将 manager 存储在 buffer 的属性中，确保它在 buffer 被垃圾回收之前不会被销毁
-                spdlog::info("Storing manager in buffer...");
-                auto manager_ptr = new std::shared_ptr<SharedMemoryManager>(manager);
-                auto finalizer = [](Napi::Env env, void* data) -> void {
-                    auto ptr = static_cast<std::shared_ptr<SharedMemoryManager>*>(data);
-                    spdlog::info("Finalizing shared memory manager.");
-                    delete ptr;
-                };
-                
-                buffer.Set("_manager", Napi::External<std::shared_ptr<SharedMemoryManager>>::New(
-                    env, 
-                    manager_ptr,
-                    finalizer
-                ));
-                
-                spdlog::info("Return result.");
-                return buffer;
-            } catch (const boost::interprocess::interprocess_exception& e) {
-                spdlog::error("Boost interprocess exception: {}", e.what());
-                if (e.get_error_code() == boost::interprocess::not_found_error) {
-                    spdlog::error("Shared memory not found: {}", e.what());
-                    throw std::runtime_error("共享内存不存在，请先使用 setMemory 创建");
-                } else {
-                    spdlog::error("Error opening shared memory: {}", e.what());
-                    throw std::runtime_error(std::string("打开共享内存失败: ") + e.what());
-                }
-            } catch (const std::exception& e) {
-                spdlog::error("Error opening shared memory: {}", e.what());
-                throw std::runtime_error(std::string("打开共享内存失败: ") + e.what());
-            }
+            // 读取头部信息
+            SharedMemoryHeader* header = static_cast<SharedMemoryHeader*>(addr);
+            size_t data_size = header->size;
+            
+            log("Header information: size=%zu", data_size);
+            
+            // 获取数据区域的地址
+            void* data_addr = static_cast<char*>(addr) + sizeof(SharedMemoryHeader);
+            
+            // 创建ArrayBuffer，直接映射到共享内存
+            auto buffer = Napi::ArrayBuffer::New(env, data_addr, data_size);
+            
+            
+            // 将SharedMemoryManager对象存储在buffer的属性中，防止被垃圾回收
+            buffer.Set("_manager", Napi::External<std::shared_ptr<SharedMemoryManager>>::New(env, &manager));
+            
+            // 设置清理回调，确保SharedMemoryManager对象不会被过早释放
+            buffer.Set("_cleanup", Napi::Function::New(env, [manager](const Napi::CallbackInfo& info) {
+                log("Cleanup callback called, manager will be destroyed.");
+                return info.Env().Undefined();
+            }));
+            
+            // 创建一个Uint8Array视图，确保JavaScript可以正确访问数据
+            auto uint8Array = Napi::Uint8Array::New(env, data_size, buffer, 0);
+            
+            return uint8Array;
+            
         } catch (const std::exception& e) {
-            spdlog::error("Error: {}", e.what());
-            throw Napi::Error::New(env, std::string("获取共享内存失败: ") + e.what());
+            log("Error: %s", e.what());
+            throw Napi::Error::New(env, e.what());
         } catch (...) {
-            spdlog::error("Unknown error occurred");
+            log("Unknown error occurred");
             throw Napi::Error::New(env, "获取共享内存时发生未知错误");
         }
     }
-} 
+}

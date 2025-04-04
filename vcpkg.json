@@ -1,6 +1,3 @@
 {
-  "dependencies": [
-    "boost-interprocess",
-    "spdlog"
-  ]
+  "dependencies": []
 }
