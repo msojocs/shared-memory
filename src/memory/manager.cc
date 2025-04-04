@@ -3,12 +3,12 @@
 #include <algorithm>
 #include <memory>
 #include <mutex>
+#include <sys/stat.h>
 
 #ifdef _WIN32
 #include <direct.h> // 用于Windows目录创建
 #include <shlobj.h> // 用于获取用户目录
 #else
-#include <sys/stat.h> // 用于创建目录
 #include <errno.h>    // 用于错误处理
 #endif
 
@@ -17,6 +17,31 @@ namespace SharedMemory {
     // 全局管理器，用于跟踪所有共享内存
     static std::map<std::string, std::shared_ptr<SharedMemoryManager>> g_managers;
     static std::mutex g_managers_mutex;
+
+    // 检测是否在Wine环境下运行
+    bool is_running_under_wine() {
+#ifdef _WIN32
+        HMODULE hntdll = GetModuleHandleA("ntdll.dll");
+        if (hntdll) {
+            typedef const char* (*wine_get_version)();
+            wine_get_version wine_get_version_func = (wine_get_version)GetProcAddress(hntdll, "wine_get_version");
+            if (wine_get_version_func) {
+                log("Running under Wine: %s", wine_get_version_func());
+                return true;
+            }
+        }
+#endif
+        return false;
+    }
+
+    // 创建目录的跨平台函数
+    bool create_directory(const std::string& path) {
+#ifdef _WIN32
+        return _mkdir(path.c_str()) == 0 || errno == EEXIST;
+#else
+        return mkdir(path.c_str(), 0755) == 0 || errno == EEXIST;
+#endif
+    }
 
     SharedMemoryManager::SharedMemoryManager(const std::string& key, bool create, size_t size) 
         : key_(key), size_(size), address_(nullptr)
@@ -34,22 +59,41 @@ namespace SharedMemory {
         // 创建互斥锁名称
         std::string mutex_name = "Global\\SharedMemoryMutex_" + key;
         
-        // 获取用户目录
-        char user_path[MAX_PATH];
-        if (SUCCEEDED(SHGetFolderPathA(NULL, CSIDL_PERSONAL, NULL, 0, user_path))) {
-            log("User path: %s", user_path);
+        // 检查是否在Wine环境下运行
+        bool is_wine = is_running_under_wine();
+        
+        std::string file_path;
+        
+        if (is_wine) {
+            // Wine环境下使用/dev/shm目录
+            file_path = "/dev/shm/" + key + ".dat";
+            log("Using Wine shared memory path: %s", file_path.c_str());
+            
+            // 确保/dev/shm目录存在
+            // 在Wine环境下，这个目录应该已经存在，但为了安全起见，我们检查一下
+            struct stat st;
+            if (stat("/dev/shm", &st) != 0) {
+                log("Warning: /dev/shm directory does not exist in Wine environment");
+            }
         } else {
-            // 如果获取用户目录失败，使用当前目录
-            GetCurrentDirectoryA(MAX_PATH, user_path);
-            log("Using current directory: %s", user_path);
+            // 原生Windows环境下使用用户目录
+            // 获取用户目录
+            char user_path[MAX_PATH];
+            if (SUCCEEDED(SHGetFolderPathA(NULL, CSIDL_PERSONAL, NULL, 0, user_path))) {
+                log("User path: %s", user_path);
+            } else {
+                // 如果获取用户目录失败，使用当前目录
+                GetCurrentDirectoryA(MAX_PATH, user_path);
+                log("Using current directory: %s", user_path);
+            }
+            
+            // 创建文件路径
+            std::string shared_memory_dir = std::string(user_path) + "\\SharedMemory";
+            file_path = shared_memory_dir + "\\" + key + ".dat";
+            
+            // 确保目录存在
+            create_directory(shared_memory_dir);
         }
-        
-        // 创建文件路径
-        std::string shared_memory_dir = std::string(user_path) + "\\SharedMemory";
-        std::string file_path = shared_memory_dir + "\\" + key + ".dat";
-        
-        // 确保目录存在
-        _mkdir(shared_memory_dir.c_str());
         
         // 创建或打开互斥锁
         mutex_ = CreateMutexA(NULL, FALSE, mutex_name.c_str());
