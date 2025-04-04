@@ -296,6 +296,23 @@ namespace SharedMemory {
                     throw std::runtime_error("Failed to set shared memory size");
                 }
             }
+            else {
+                
+                // 映射共享内存
+                address_ = mmap(NULL, total_size, PROT_READ | PROT_WRITE, MAP_SHARED, fd, 0);
+                if (address_ == MAP_FAILED) {
+                    log("Failed to map shared memory, error: %s", strerror(errno));
+                    sem_post(mutex_);
+                    sem_close(mutex_);
+                    mutex_ = nullptr;
+                    throw std::runtime_error("Failed to map shared memory");
+                }
+                // 读取头部信息
+                SharedMemoryHeader* header = static_cast<SharedMemoryHeader*>(address_);
+                size = header->size;
+                total_size = size + sizeof(SharedMemoryHeader);
+                log("Read shared memory header: size=%zu, version=%d", size, header->version);
+            }
             
             // 映射共享内存
             address_ = mmap(NULL, total_size, PROT_READ | PROT_WRITE, MAP_SHARED, fd, 0);
@@ -387,6 +404,7 @@ namespace SharedMemory {
             file_path_.c_str());
     }
 
+    #ifdef _WIN32
     bool SharedMemoryManager::create_mapping(HANDLE file_handle, size_t mapping_size) {
         // 如果已存在映射，先清理
         if (file_mapping_) {
@@ -433,4 +451,5 @@ namespace SharedMemory {
         
         return true;
     }
+    #endif
 } 

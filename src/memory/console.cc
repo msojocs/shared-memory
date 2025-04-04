@@ -79,8 +79,10 @@ namespace SharedMemory {
             }
         }
         else {
-            spdlog::info(format, args);
+            char buffer[1024];
+            vsnprintf(buffer, sizeof(buffer), format, args);
             va_end(args);
+            spdlog::info("{}", buffer);
         }
     }
 } 
