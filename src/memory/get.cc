@@ -2,6 +2,7 @@
 #include <boost/interprocess/shared_memory_object.hpp>
 #include <boost/interprocess/mapped_region.hpp>
 #include <boost/interprocess/sync/named_mutex.hpp>
+#include <boost/interprocess/sync/scoped_lock.hpp>
 #include "../memory.hh"
 #include "spdlog/spdlog.h"
 #include <iostream>

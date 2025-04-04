@@ -15,21 +15,22 @@ process.on('uncaughtException', (err) => {
         console.info('-------set--------')
         // 创建共享内存
         const result = sharedMemory.setMemory(key, length);
-        if (!result || !result.length) {
+        if (!result || !result.byteLength) {
             throw new Error('共享内存创建失败');
         }
+        const sharedBufferView = new Uint8Array(result)
         
         console.info('------print initial state---------')
-        console.log('Buffer length:', result.length);
-        console.log('Initial data (first 10 bytes):', result.slice(0, 10));
+        console.log('Buffer length:', sharedBufferView.length, result.byteLength);
+        console.log('Initial data (first 10 bytes):', sharedBufferView.slice(0, 10));
         
         console.info('------write---------')
         try {
             // 修改共享内存中的数据，只写入前100个字节
             console.log('开始写入数据...');
-            for (let i = 0; i < Math.min(100, result.length); i++) {
+            for (let i = 0; i < Math.min(100, sharedBufferView.length); i++) {
                 console.log(`已写入 ${i} 字节...`);
-                result[i] = i % 256; // 填充一些数据
+                sharedBufferView[i] = i % 256; // 填充一些数据
             }
             console.info('写入数据成功');
         } catch (writeError) {
@@ -39,7 +40,7 @@ process.on('uncaughtException', (err) => {
         }
         
         console.info('------print after write---------')
-        console.log('Data after write (first 10 bytes):', result.slice(0, 10));
+        console.log('Data after write (first 10 bytes):', sharedBufferView.slice(0, 10));
         
         console.info('-------sleep 5s--------')
         await sleep(5000); // 减少等待时间

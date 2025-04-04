@@ -1,7 +1,7 @@
 cmake_minimum_required(VERSION 3.15)
 cmake_policy(SET CMP0091 NEW)
 cmake_policy(SET CMP0042 NEW)
-cmake_policy(SET CMP0167 NEW)
+# cmake_policy(SET CMP0167 NEW)
 
 project("module_example")
 
@@ -111,9 +111,21 @@ add_library(${MODULE_NAME}
     ${SRC_DIR_LIST}
     ${CMAKE_JS_SRC}
     )
+
+set(IS_RUNNING_NODE true)
 if (WIN32)
-    message("整合 node64.lib")
-    target_link_libraries(${MODULE_NAME} PRIVATE ${PROJECT_SOURCE_DIR}/thirds/nwjs/node64.lib)
+    if(IS_RUNNING_NODE)
+        message("生成 node_api.lib")
+        execute_process(COMMAND
+            ${CMAKE_AR} /def:node_api.def /out:node_api.lib /machine:x86 ${CMAKE_STATIC_LINKER_FLAGS}
+            WORKING_DIRECTORY ${PROJECT_SOURCE_DIR}/node_modules/node-api-headers/def
+            COMMAND_ERROR_IS_FATAL ANY
+        )
+        target_link_libraries(${MODULE_NAME} PRIVATE ${PROJECT_SOURCE_DIR}/node_modules/node-api-headers/def/node_api.lib)
+    else()
+        message("整合 node64.lib")
+        target_link_libraries(${MODULE_NAME} PRIVATE ${PROJECT_SOURCE_DIR}/thirds/nwjs/node64.lib)
+    endif()
 endif()
 target_link_libraries(${MODULE_NAME} PRIVATE Boost::interprocess)
 target_link_libraries(${MODULE_NAME} PRIVATE ${CMAKE_JS_LIB})
