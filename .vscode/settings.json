@@ -1,6 +1,5 @@
 {
     "cmake.sourceDirectory": "${workspaceFolder}",
-    "clangd.path": "clangd",
     "clangd.arguments": [
         // 让 Clangd 生成更详细的日志
         // "--log=verbose",

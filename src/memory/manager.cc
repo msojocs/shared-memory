@@ -4,6 +4,7 @@
 #include <algorithm>
 #include <memory>
 #include <mutex>
+#include <sys/mman.h>
 #include <sys/stat.h>
 
 #ifdef _WIN32
@@ -249,13 +250,18 @@ namespace SharedMemory {
 #else
         // Linux实现
         // 创建共享内存名称
-        std::string shm_name = "/" + key + ".dat";
+        std::string shm_name = "/skyline_" + key + ".dat";
         
         // 创建互斥锁名称
-        std::string mutex_name = "/SharedMemoryMutex_" + key;
+        std::string mutex_name = "/skyline_mutex_" + key;
         
         // 创建或打开互斥锁
-        mutex_ = sem_open(mutex_name.c_str(), O_CREAT, 0644, 1);
+        if (create) {
+            mutex_ = sem_open(mutex_name.c_str(), O_CREAT, 0644, 1);
+        }
+        else {
+            mutex_ = sem_open(mutex_name.c_str(), O_RDWR);
+        }
         if (mutex_ == SEM_FAILED) {
             log("Failed to create mutex, error: %s", strerror(errno));
             throw std::runtime_error("Failed to create mutex");
@@ -311,7 +317,9 @@ namespace SharedMemory {
                 SharedMemoryHeader* header = static_cast<SharedMemoryHeader*>(address_);
                 size = header->size;
                 total_size = size + sizeof(SharedMemoryHeader);
+                size_ = size;
                 log("Read shared memory header: size=%zu, version=%d", size, header->version);
+                munmap(address_, total_size);
             }
             
             // 映射共享内存
@@ -365,6 +373,9 @@ namespace SharedMemory {
     }
     
     SharedMemoryManager::~SharedMemoryManager() {
+        printf("Destroying shared memory manager: key=%s, file=%s\n", 
+            key_.c_str(), 
+            file_path_.c_str());
 #ifdef _WIN32
         // Windows实现
         // 释放资源
@@ -399,7 +410,7 @@ namespace SharedMemory {
         }
 #endif
         
-        log("Shared memory manager destroyed: key=%s, file=%s", 
+        printf("Shared memory manager destroyed: key=%s, file=%s\n", 
             key_.c_str(), 
             file_path_.c_str());
     }
@@ -452,4 +463,5 @@ namespace SharedMemory {
         return true;
     }
     #endif
+
 } 

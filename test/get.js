@@ -1,5 +1,5 @@
 const sharedMemory = require('../build/sharedMemory.node');
-const key = "2123";
+const key = "2124";
 
 try {
     // 获取共享内存

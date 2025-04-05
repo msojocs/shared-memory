@@ -36,39 +36,6 @@ namespace SharedMemory {
         int version;          // 版本号
     };
 
-    // 共享内存地址管理器
-    class AddressManager {
-    public:
-        static AddressManager& getInstance() {
-            static AddressManager instance;
-            return instance;
-        }
-
-        void* getAddress(const std::string& key) {
-            std::lock_guard<std::mutex> lock(mutex_);
-            auto it = addresses_.find(key);
-            if (it != addresses_.end()) {
-                return it->second;
-            }
-            return nullptr;
-        }
-
-        void setAddress(const std::string& key, void* addr) {
-            std::lock_guard<std::mutex> lock(mutex_);
-            addresses_[key] = addr;
-        }
-
-        void removeAddress(const std::string& key) {
-            std::lock_guard<std::mutex> lock(mutex_);
-            addresses_.erase(key);
-        }
-
-    private:
-        AddressManager() {}
-        std::map<std::string, void*> addresses_;
-        std::mutex mutex_;
-    };
-
     // 共享内存管理器类
     class SharedMemoryManager : public std::enable_shared_from_this<SharedMemoryManager> {
     public:

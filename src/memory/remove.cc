@@ -30,8 +30,6 @@ namespace SharedMemory {
             log("Remove memory call.");
             log("Read arguments.");
             
-            // 从全局管理器中移除地址
-            AddressManager::getInstance().removeAddress(key);
             
 #ifdef _WIN32
             // Windows实现
@@ -94,7 +92,7 @@ namespace SharedMemory {
 #else
             // Linux实现
             // 尝试删除共享内存
-            std::string shm_name = "/" + key;
+            std::string shm_name = "/skyline_" + key + ".dat";
             if (shm_unlink(shm_name.c_str()) == 0) {
                 log("Removed shared memory: %s", shm_name.c_str());
             } else if (errno != ENOENT) { // 忽略"不存在"错误
@@ -103,30 +101,12 @@ namespace SharedMemory {
             }
             
             // 尝试删除互斥锁
-            std::string mutex_name = "/SharedMemoryMutex_" + key;
+            std::string mutex_name = "/skyline_mutex_" + key;
             if (sem_unlink(mutex_name.c_str()) == 0) {
                 log("Removed mutex: %s", mutex_name.c_str());
             } else if (errno != ENOENT) { // 忽略"不存在"错误
                 log("Failed to remove mutex: %s, error: %s", 
                     mutex_name.c_str(), strerror(errno));
-            }
-            
-            // 强制删除共享内存文件（如果存在）
-            std::string file_path = "/dev/shm/" + key + ".dat";
-            if (unlink(file_path.c_str()) == 0) {
-                log("Removed shared memory file: %s", file_path.c_str());
-            } else if (errno != ENOENT) { // 忽略"不存在"错误
-                log("Failed to remove shared memory file: %s, error: %s", 
-                    file_path.c_str(), strerror(errno));
-            }
-            
-            // 强制删除信号量文件（如果存在）
-            std::string sem_file_path = "/dev/shm/sem.SharedMemoryMutex_" + key;
-            if (unlink(sem_file_path.c_str()) == 0) {
-                log("Removed semaphore file: %s", sem_file_path.c_str());
-            } else if (errno != ENOENT) { // 忽略"不存在"错误
-                log("Failed to remove semaphore file: %s, error: %s", 
-                    sem_file_path.c_str(), strerror(errno));
             }
             
             // 尝试打开并关闭信号量，以确保它被完全删除

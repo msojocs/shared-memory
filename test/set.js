@@ -9,17 +9,17 @@ process.on('uncaughtException', (err) => {
 (async () => {
     try {
         await sleep(1000);
-        const key = "2123";
+        const key = "2124";
         const length = 4081; // 共享内存的大小（字节）
         
         sharedMemory.setConsole(console.info)
         console.info('-------set--------')
         // 创建共享内存
-        const result = sharedMemory.setMemory(key, length);
+        let result = sharedMemory.setMemory(key, length);
         if (!result || !result.byteLength) {
             throw new Error('共享内存创建失败');
         }
-        const sharedBufferView = new Uint8Array(result)
+        let sharedBufferView = new Uint8Array(result)
         
         console.info('------print initial state---------')
         console.log('Buffer length:', sharedBufferView.length, result.byteLength);
@@ -42,8 +42,9 @@ process.on('uncaughtException', (err) => {
         
         console.info('------print after write---------')
         console.log('Data after write (first 10 bytes):', sharedBufferView.slice(0, 10));
-        
-        console.info('-------sleep 5s--------')
+        result = undefined;
+        sharedBufferView = undefined;
+        console.info('-------sleep 10s--------')
         await sleep(10000); // 减少等待时间
         
         // 清理共享内存
