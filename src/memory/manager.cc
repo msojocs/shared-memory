@@ -4,7 +4,6 @@
 #include <algorithm>
 #include <memory>
 #include <mutex>
-#include <sys/mman.h>
 #include <sys/stat.h>
 
 #ifdef _WIN32
@@ -12,6 +11,7 @@
 #include <shlobj.h> // 用于获取用户目录
 #else
 #include <errno.h>    // 用于错误处理
+#include <sys/mman.h>
 #endif
 
 namespace SharedMemory {
@@ -67,7 +67,7 @@ namespace SharedMemory {
         
         if (is_wine) {
             // Wine环境下使用/dev/shm目录
-            file_path = "/dev/shm/" + key + ".dat";
+            file_path = "/dev/shm/skyline_" + key + ".dat";
             log("Using Wine shared memory path: %s", file_path.c_str());
             
             // 确保/dev/shm目录存在
@@ -90,7 +90,7 @@ namespace SharedMemory {
             
             // 创建文件路径
             std::string shared_memory_dir = std::string(user_path) + "\\SharedMemory";
-            file_path = shared_memory_dir + "\\" + key + ".dat";
+            file_path = shared_memory_dir + "\\skyline_" + key + ".dat";
             
             // 确保目录存在
             create_directory(shared_memory_dir);

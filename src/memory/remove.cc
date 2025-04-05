@@ -66,12 +66,12 @@ namespace SharedMemory {
             
             if (SUCCEEDED(SHGetFolderPathA(NULL, CSIDL_PERSONAL, NULL, 0, user_path))) {
                 log("User path: %s", user_path);
-                file_path = std::string(user_path) + "\\SharedMemory\\" + key + ".dat";
+                file_path = std::string(user_path) + "\\SharedMemory\\skyline_" + key + ".dat";
             } else {
                 // 如果获取用户目录失败，使用当前目录
                 GetCurrentDirectoryA(MAX_PATH, user_path);
                 log("Using current directory: %s", user_path);
-                file_path = std::string(user_path) + "\\SharedMemory\\" + key + ".dat";
+                file_path = std::string(user_path) + "\\SharedMemory\\skyline_" + key + ".dat";
             }
             
             // 尝试删除文件
