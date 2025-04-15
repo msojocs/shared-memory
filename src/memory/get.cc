@@ -6,7 +6,7 @@
 
 namespace SharedMemory {
     // 全局变量来保存共享内存资源
-    static std::shared_ptr<SharedMemoryManager> manager;
+    static std::map<std::string, std::shared_ptr<SharedMemoryManager>> managerMap;
     Napi::Value get_memory(const Napi::CallbackInfo &info) {
         Napi::Env env = info.Env();
         
@@ -26,7 +26,7 @@ namespace SharedMemory {
             log("Creating SharedMemoryManager...");
             
             // 创建共享内存管理器
-            manager = std::make_shared<SharedMemoryManager>(key, false);
+            auto manager = managerMap[key] = std::make_shared<SharedMemoryManager>(key, false);
             log("SharedMemoryManager created successfully.");
             
             // 获取共享内存的地址和大小
