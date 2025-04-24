@@ -1,8 +1,8 @@
 #include "napi.h"
 #include "../memory.hh"
 #include <cstring>
-#include <algorithm>
 #include <memory>
+#include <map>
 
 namespace SharedMemory {
     // 全局变量来保存共享内存资源

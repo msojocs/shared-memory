@@ -1,8 +1,8 @@
 #include "napi.h"
 #include "../memory.hh"
 #include <cstring>
-#include <algorithm>
 #include <memory>
+#include <map>
 
 namespace SharedMemory {
     static std::map<std::string, std::shared_ptr<SharedMemoryManager>> managerMap;
