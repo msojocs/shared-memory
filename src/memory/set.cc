@@ -47,6 +47,9 @@ namespace SharedMemory {
             // 获取数据区域的地址
             void* data_addr = static_cast<char*>(addr) + sizeof(SharedMemoryHeader);
             memset(data_addr, 0, length);
+            // 初始分配时，存储key。
+            auto str = "key:" + key;
+            memcpy(data_addr, str.c_str(), str.length());
             
             // 创建ArrayBuffer，直接映射到共享内存
             auto buffer = Napi::ArrayBuffer::New(env, data_addr, length);
