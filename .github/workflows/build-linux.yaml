@@ -52,6 +52,7 @@ jobs:
       - name: Prepare
         run: |
           pnpm install --no-frozen-lockfile
+          pnpm run prepare
       - name: Build
         run: |
           sudo apt install -y ninja-build
