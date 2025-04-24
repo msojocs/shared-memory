@@ -4,7 +4,8 @@
   "description": "",
   "main": "index.js",
   "scripts": {
-    "compile": "cmake-js compile"
+    "compile": "cmake-js compile",
+    "prepare": "node scripts/prepare/nwjs.js"
   },
   "keywords": [],
   "author": "",

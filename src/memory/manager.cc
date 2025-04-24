@@ -1,10 +1,8 @@
 #include "../memory.hh"
 #include <cmath>
 #include <cstring>
-#include <algorithm>
-#include <memory>
-#include <mutex>
 #include <sys/stat.h>
+#include <stdexcept>
 
 #ifdef _WIN32
 #include <direct.h> // 用于Windows目录创建

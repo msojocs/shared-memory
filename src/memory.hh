@@ -5,8 +5,6 @@
 #include "napi.h"
 #include <memory>
 #include <string>
-#include <map>
-#include <mutex>
 
 // 平台特定的头文件
 #ifdef _WIN32
