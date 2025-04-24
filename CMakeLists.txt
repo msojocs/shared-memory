@@ -128,6 +128,3 @@ target_link_libraries(${MODULE_NAME} PRIVATE ${CMAKE_JS_LIB})
 set_target_properties(${MODULE_NAME} PROPERTIES PREFIX "" SUFFIX ".node")
 
 ################test##################
-add_executable(test_posix test/posix.c)
-target_link_libraries(test_posix PRIVATE rt pthread)
-
