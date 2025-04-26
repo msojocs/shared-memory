@@ -258,6 +258,7 @@ namespace SharedMemory {
             mutex_ = sem_open(mutex_name.c_str(), O_CREAT, 0644, 1);
         }
         else {
+            log("Call sem_open");
             mutex_ = sem_open(mutex_name.c_str(), O_RDWR);
         }
         if (mutex_ == SEM_FAILED) {
@@ -266,6 +267,7 @@ namespace SharedMemory {
         }
         
         // 获取互斥锁
+        log("Call sem_wait");
         if (sem_wait(mutex_) != 0) {
             log("Failed to acquire mutex, error: %s", strerror(errno));
             sem_close(mutex_);
@@ -280,6 +282,7 @@ namespace SharedMemory {
             }
             
             // 创建或打开共享内存
+            log("Call shm_open");
             int fd = shm_open(shm_name.c_str(), flags, 0644);
             if (fd == -1) {
                 log("Failed to open shared memory, error: %s", strerror(errno));
@@ -302,6 +305,7 @@ namespace SharedMemory {
             }
             else {
                 
+                log("Call mmap first.");
                 // 映射共享内存
                 address_ = mmap(NULL, total_size, PROT_READ | PROT_WRITE, MAP_SHARED, fd, 0);
                 if (address_ == MAP_FAILED) {
@@ -314,13 +318,16 @@ namespace SharedMemory {
                 // 读取头部信息
                 SharedMemoryHeader* header = static_cast<SharedMemoryHeader*>(address_);
                 size = header->size;
-                total_size = size + sizeof(SharedMemoryHeader);
                 size_ = size;
                 log("Read shared memory header: size=%zu, version=%d", size, header->version);
+                log("Call munmap.");
                 munmap(address_, total_size);
+                log("Call munmap end.");
+                total_size = size + sizeof(SharedMemoryHeader);
             }
             
             // 映射共享内存
+            log("Call mmap second.");
             address_ = mmap(NULL, total_size, PROT_READ | PROT_WRITE, MAP_SHARED, fd, 0);
             close(fd);
             
