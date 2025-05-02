@@ -92,29 +92,29 @@ namespace SharedMemory {
 #else
             // Linux实现
             // 尝试删除共享内存
-            std::string shm_name = "/skyline_" + key + ".dat";
-            if (shm_unlink(shm_name.c_str()) == 0) {
-                log("Removed shared memory: %s", shm_name.c_str());
-            } else if (errno != ENOENT) { // 忽略"不存在"错误
-                log("Failed to remove shared memory: %s, error: %s", 
-                    shm_name.c_str(), strerror(errno));
-            }
+            // std::string shm_name = "/skyline_" + key + ".dat";
+            // if (shm_unlink(shm_name.c_str()) == 0) {
+            //     log("Removed shared memory: %s", shm_name.c_str());
+            // } else if (errno != ENOENT) { // 忽略"不存在"错误
+            //     log("Failed to remove shared memory: %s, error: %s", 
+            //         shm_name.c_str(), strerror(errno));
+            // }
             
-            // 尝试删除互斥锁
-            std::string mutex_name = "/skyline_mutex_" + key;
-            if (sem_unlink(mutex_name.c_str()) == 0) {
-                log("Removed mutex: %s", mutex_name.c_str());
-            } else if (errno != ENOENT) { // 忽略"不存在"错误
-                log("Failed to remove mutex: %s, error: %s", 
-                    mutex_name.c_str(), strerror(errno));
-            }
+            // // 尝试删除互斥锁
+            // std::string mutex_name = "/skyline_mutex_" + key;
+            // if (sem_unlink(mutex_name.c_str()) == 0) {
+            //     log("Removed mutex: %s", mutex_name.c_str());
+            // } else if (errno != ENOENT) { // 忽略"不存在"错误
+            //     log("Failed to remove mutex: %s, error: %s", 
+            //         mutex_name.c_str(), strerror(errno));
+            // }
             
-            // 尝试打开并关闭信号量，以确保它被完全删除
-            sem_t* sem = sem_open(mutex_name.c_str(), 0);
-            if (sem != SEM_FAILED) {
-                sem_close(sem);
-                log("Opened and closed semaphore to ensure it's deleted");
-            }
+            // // 尝试打开并关闭信号量，以确保它被完全删除
+            // sem_t* sem = sem_open(mutex_name.c_str(), 0);
+            // if (sem != SEM_FAILED) {
+            //     sem_close(sem);
+            //     log("Opened and closed semaphore to ensure it's deleted");
+            // }
 #endif
             
             log("Shared memory removed: key=%s", key.c_str());
